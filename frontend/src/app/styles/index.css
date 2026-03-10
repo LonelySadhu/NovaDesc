@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 59 130 246;
+    --color-danger: 239 68 68;
+    --color-warning: 245 158 11;
+    --color-success: 34 197 94;
+  }
+}
