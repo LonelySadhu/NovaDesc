@@ -20,6 +20,11 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-768}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      RAG_TOP_K: ${RAG_TOP_K:-5}
     depends_on:
       db:
         condition: service_healthy
@@ -28,7 +33,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-novadesc}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-novadesc}

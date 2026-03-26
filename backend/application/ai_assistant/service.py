@@ -5,6 +5,7 @@ from domain.ai_assistant.entities import AIQuery
 from domain.ai_assistant.ports import AIProviderPort
 from domain.equipment.repositories import EquipmentRepository
 from domain.work_orders.repositories import WorkOrderRepository
+from application.knowledge_base.search_chunks import SearchChunksUseCase
 
 
 class AIAssistantService:
@@ -13,10 +14,12 @@ class AIAssistantService:
         ai_provider: AIProviderPort,
         equipment_repo: EquipmentRepository,
         work_order_repo: WorkOrderRepository,
+        search_chunks: Optional[SearchChunksUseCase] = None,
     ):
         self._ai = ai_provider
         self._equipment_repo = equipment_repo
         self._work_order_repo = work_order_repo
+        self._search_chunks = search_chunks
 
     async def ask(
         self,
@@ -25,7 +28,7 @@ class AIAssistantService:
         equipment_id: Optional[UUID] = None,
         work_order_id: Optional[UUID] = None,
     ) -> AIQuery:
-        context = await self._build_context(equipment_id, work_order_id)
+        context = await self._build_context(question, equipment_id, work_order_id)
         answer = await self._ai.ask(question, context)
 
         query = AIQuery(
@@ -44,12 +47,13 @@ class AIAssistantService:
         equipment_id: Optional[UUID] = None,
         work_order_id: Optional[UUID] = None,
     ) -> AsyncIterator[str]:
-        context = await self._build_context(equipment_id, work_order_id)
+        context = await self._build_context(question, equipment_id, work_order_id)
         async for chunk in self._ai.ask_stream(question, context):
             yield chunk
 
     async def _build_context(
         self,
+        question: str,
         equipment_id: Optional[UUID],
         work_order_id: Optional[UUID],
     ) -> str:
@@ -76,5 +80,14 @@ class AIAssistantService:
                     f"Status: {work_order.status}, "
                     f"Description: {work_order.description}"
                 )
+
+        # RAG: retrieve relevant document chunks and prepend to context
+        if self._search_chunks:
+            rag_context = await self._search_chunks.build_context(
+                query=question,
+                equipment_id=equipment_id,
+            )
+            if rag_context:
+                parts.insert(0, f"Relevant documentation:\n{rag_context}")
 
         return "\n".join(parts)

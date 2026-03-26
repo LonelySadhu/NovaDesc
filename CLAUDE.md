@@ -75,11 +75,23 @@ make ollama-pull  # pull llama3 model into Ollama
 - **Active branch**: `claude/review-readme-planning-wNzD4`
 - Never push to `main` directly
 
+## RAG / Knowledge Base
+Documents (PDF/DOCX/TXT) are uploaded via `POST /api/v1/knowledge-base/documents`,
+parsed → chunked (800 chars, 100 overlap) → embedded → stored in pgvector.
+On each AI query the top-K relevant chunks are retrieved and injected into the LLM prompt.
+
+- **Embedding providers**: `EMBEDDING_PROVIDER=ollama` (nomic-embed-text, 768-dim, air-gapped)
+  or `EMBEDDING_PROVIDER=openai` (text-embedding-3-small, 1536-dim, requires OPENAI_API_KEY).
+- **Vector store**: pgvector extension on the existing PostgreSQL (`pgvector/pgvector:pg16` image).
+- **Document repo**: in-memory stub (`InMemoryDocumentRepository`) — replace with ORM repo.
+- `RAG_TOP_K`, `RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP` are configurable via env.
+
 ## Next Steps (in priority order)
-1. SQLAlchemy ORM models + Alembic migration setup
+1. SQLAlchemy ORM models + Alembic migration setup (including `document_chunks` table → replace InMemoryDocumentRepository)
 2. JWT authentication + role-based access control (RBAC)
 3. CRUD API endpoints for `equipment` and `work_orders`
 4. Figma designs → React page/widget components
 5. AI chat endpoint with streaming (SSE) + equipment context injection
-6. Alembic seed script for initial admin user
-7. External API integration layer (SAP, 1C adapters)
+6. Frontend: knowledge-base page — upload UI + document list
+7. Alembic seed script for initial admin user
+8. External API integration layer (SAP, 1C adapters)
