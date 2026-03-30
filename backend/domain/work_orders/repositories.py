@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 from uuid import UUID
 
-from .entities import WorkOrder
-from .value_objects import WorkOrderStatus, WorkOrderPriority
+from .entities import WorkOrder, WorkOrderPhoto
+from .value_objects import WorkOrderPriority, WorkOrderStatus
 
 
 class WorkOrderRepository(ABC):
@@ -22,7 +22,13 @@ class WorkOrderRepository(ABC):
     ) -> List[WorkOrder]: ...
 
     @abstractmethod
-    async def save(self, work_order: WorkOrder) -> WorkOrder: ...
+    async def save(self, work_order: WorkOrder) -> None: ...
 
     @abstractmethod
     async def delete(self, work_order_id: UUID) -> None: ...
+
+    @abstractmethod
+    async def save_photo(self, photo: WorkOrderPhoto) -> None: ...
+
+    @abstractmethod
+    async def list_photos(self, work_order_id: UUID) -> List[WorkOrderPhoto]: ...

@@ -16,6 +16,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-novadesc}:${POSTGRES_PASSWORD:-novadesc}@db:5432/${POSTGRES_DB:-novadesc}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      # AI
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
@@ -25,6 +26,69 @@ services:
       EMBEDDING_DIM: ${EMBEDDING_DIM:-768}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       RAG_TOP_K: ${RAG_TOP_K:-5}
+      # Celery
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-novadesc}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me}
+      MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA:-novadesc-media}
+      MINIO_BUCKET_DOCS: ${MINIO_BUCKET_DOCS:-novadesc-docs}
+      MINIO_SECURE: "false"
+      # Email
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@novadesc.local}
+      SMTP_TLS: ${SMTP_TLS:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A core.celery_app worker --loglevel=info --concurrency=4
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-novadesc}:${POSTGRES_PASSWORD:-novadesc}@db:5432/${POSTGRES_DB:-novadesc}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-novadesc}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me}
+      MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA:-novadesc-media}
+      MINIO_BUCKET_DOCS: ${MINIO_BUCKET_DOCS:-novadesc-docs}
+      MINIO_SECURE: "false"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@novadesc.local}
+      SMTP_TLS: ${SMTP_TLS:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A core.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-novadesc}:${POSTGRES_PASSWORD:-novadesc}@db:5432/${POSTGRES_DB:-novadesc}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
     depends_on:
       db:
         condition: service_healthy
@@ -53,11 +117,26 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-novadesc}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   ollama:
     image: ollama/ollama:latest
     volumes:
       - ollama_data:/root/.ollama
-    # GPU support (uncomment if NVIDIA GPU available)
+    # GPU support (uncomment if NVIDIA GPU available):
     # deploy:
     #   resources:
     #     reservations:
@@ -67,9 +146,10 @@ services:
     #           capabilities: [gpu]
     restart: unless-stopped
     profiles:
-      - with-ollama  # запускается только при: docker compose --profile with-ollama up
+      - with-ollama
 
 volumes:
   postgres_data:
   redis_data:
+  minio_data:
   ollama_data:
