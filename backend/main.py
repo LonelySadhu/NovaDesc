@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
+from api.v1.auth.router import router as auth_router
 from api.v1.equipment.router import router as equipment_router
 from api.v1.ai.router import router as ai_router
 from api.v1.knowledge_base.router import router as knowledge_base_router
@@ -29,6 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(equipment_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
 app.include_router(knowledge_base_router, prefix="/api/v1")
