@@ -1,4 +1,4 @@
-.PHONY: help dev dev-down prod prod-down logs migrate makemigration seed ollama-pull
+.PHONY: help dev dev-down prod prod-down logs migrate makemigration seed ollama-pull test
 
 help:
 	@echo "NovaDesc — available commands:"
@@ -34,8 +34,11 @@ makemigration:
 	docker compose exec backend alembic revision --autogenerate -m "$(m)"
 
 seed:
-	docker compose exec backend python -m scripts.seed
+	docker compose exec backend python -m scripts.seed_admin
 
 ollama-pull:
 	docker compose exec ollama ollama pull llama3
 	docker compose exec ollama ollama pull nomic-embed-text
+
+test:
+	docker compose exec backend pytest --tb=short -q
