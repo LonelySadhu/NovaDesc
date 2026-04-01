@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from domain.equipment.value_objects import EquipmentStatus, MaintenanceIntervalUnit
+from domain.equipment.value_objects import EquipmentStatus, MaintenanceIntervalUnit, SystemStatus
 
 
 class MaintenanceIntervalSchema(BaseModel):
@@ -12,12 +12,46 @@ class MaintenanceIntervalSchema(BaseModel):
     unit: MaintenanceIntervalUnit
 
 
+# ── Equipment System ──────────────────────────────────────────────────────────
+
+class EquipmentSystemCreate(BaseModel):
+    name: str
+    department_id: UUID
+    description: Optional[str] = None
+    system_type: Optional[str] = None
+    stakeholder_id: Optional[UUID] = None
+
+
+class EquipmentSystemUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    system_type: Optional[str] = None
+    stakeholder_id: Optional[UUID] = None
+
+
+class EquipmentSystemResponse(BaseModel):
+    id: UUID
+    name: str
+    department_id: UUID
+    description: Optional[str]
+    system_type: Optional[str]
+    stakeholder_id: Optional[UUID]
+    status: SystemStatus
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Equipment ─────────────────────────────────────────────────────────────────
+
 class EquipmentCreate(BaseModel):
     name: str
     serial_number: str
     manufacturer: str
     model: str
     location: str
+    system_id: UUID
     installed_at: Optional[datetime] = None
     maintenance_interval: Optional[MaintenanceIntervalSchema] = None
     metadata: dict = {}
@@ -37,6 +71,7 @@ class EquipmentResponse(BaseModel):
     manufacturer: str
     model: str
     location: str
+    system_id: UUID
     status: EquipmentStatus
     maintenance_interval: Optional[MaintenanceIntervalSchema] = None
     installed_at: Optional[datetime] = None
@@ -44,5 +79,4 @@ class EquipmentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
