@@ -99,6 +99,38 @@ class SqlWorkOrderRepository(WorkOrderRepository):
             await self._session.delete(row)
             await self._session.flush()
 
+    async def save_log(self, log: WorkOrderLog) -> None:
+        existing = await self._session.get(WorkOrderLogModel, log.id)
+        if existing is None:
+            row = WorkOrderLogModel(
+                id=log.id,
+                work_order_id=log.work_order_id,
+                author_id=log.author_id,
+                message=log.message,
+                hours_spent=log.hours_spent,
+                created_at=log.created_at,
+            )
+            self._session.add(row)
+            await self._session.flush()
+
+    async def list_logs(self, work_order_id: UUID) -> List[WorkOrderLog]:
+        result = await self._session.execute(
+            select(WorkOrderLogModel).where(
+                WorkOrderLogModel.work_order_id == work_order_id
+            ).order_by(WorkOrderLogModel.created_at)
+        )
+        return [
+            WorkOrderLog(
+                id=row.id,
+                work_order_id=row.work_order_id,
+                author_id=row.author_id,
+                message=row.message,
+                hours_spent=row.hours_spent,
+                created_at=row.created_at,
+            )
+            for row in result.scalars()
+        ]
+
     async def save_photo(self, photo: WorkOrderPhoto) -> None:
         existing = await self._session.get(WorkOrderPhotoModel, photo.id)
         if existing is None:

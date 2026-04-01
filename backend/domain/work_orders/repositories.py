@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 from uuid import UUID
 
-from .entities import WorkOrder, WorkOrderPhoto
+from .entities import WorkOrder, WorkOrderLog, WorkOrderPhoto
 from .value_objects import WorkOrderPriority, WorkOrderStatus
 
 
@@ -26,6 +26,12 @@ class WorkOrderRepository(ABC):
 
     @abstractmethod
     async def delete(self, work_order_id: UUID) -> None: ...
+
+    @abstractmethod
+    async def save_log(self, log: WorkOrderLog) -> None: ...
+
+    @abstractmethod
+    async def list_logs(self, work_order_id: UUID) -> List[WorkOrderLog]: ...
 
     @abstractmethod
     async def save_photo(self, photo: WorkOrderPhoto) -> None: ...
