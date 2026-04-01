@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 from uuid import UUID
 
-from .entities import WorkOrder, WorkOrderPhoto
+from .entities import WorkOrder, WorkOrderLog, WorkOrderPhoto
 from .value_objects import WorkOrderPriority, WorkOrderStatus
 
 
