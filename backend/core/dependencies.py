@@ -15,7 +15,20 @@ from domain.users.value_objects import UserRole
 _bearer = HTTPBearer()
 
 
-# ── AI provider (LLM) ───────────────────────────────────────────────────────
+# ── Database session ──────────────────────────────────────────────────────────
+
+async def get_session() -> AsyncSession:
+    from infrastructure.database.session import AsyncSessionLocal
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+# ── AI provider (LLM) ────────────────────────────────────────────────────────
 
 @lru_cache
 def get_ai_provider() -> AIProviderPort:
@@ -32,7 +45,7 @@ def get_ai_provider() -> AIProviderPort:
     )
 
 
-# ── Embedder ─────────────────────────────────────────────────────────────────
+# ── Embedder ──────────────────────────────────────────────────────────────────
 
 @lru_cache
 def get_embedder() -> EmbeddingPort:
@@ -62,24 +75,60 @@ def get_vector_store() -> VectorStorePort:
     return PgVectorStore(engine=engine, dim=settings.EMBEDDING_DIM)
 
 
-# ── Document repository (in-memory stub until ORM layer is added) ─────────────
+# ── Domain repositories ───────────────────────────────────────────────────────
 
-@lru_cache
-def get_document_repo():
-    from infrastructure.knowledge_base.in_memory_document_repo import InMemoryDocumentRepository
-    return InMemoryDocumentRepository()
+def get_document_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.knowledge_base import SqlDocumentRepository
+    return SqlDocumentRepository(session)
 
 
-# ── Knowledge base use cases ─────────────────────────────────────────────────
+def get_department_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.departments import SqlDepartmentRepository
+    return SqlDepartmentRepository(session)
 
-def get_upload_document_use_case():
+
+def get_equipment_system_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.equipment import SqlEquipmentSystemRepository
+    return SqlEquipmentSystemRepository(session)
+
+
+def get_equipment_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.equipment import SqlEquipmentRepository
+    return SqlEquipmentRepository(session)
+
+
+def get_work_order_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.work_orders import SqlWorkOrderRepository
+    return SqlWorkOrderRepository(session)
+
+
+def get_spare_part_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.spare_parts import SqlSparePartRepository
+    return SqlSparePartRepository(session)
+
+
+def get_purchase_request_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.spare_parts import SqlPurchaseRequestRepository
+    return SqlPurchaseRequestRepository(session)
+
+
+def get_maintenance_schedule_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.repositories.maintenance import SqlMaintenanceScheduleRepository
+    return SqlMaintenanceScheduleRepository(session)
+
+
+# ── Knowledge base use cases ──────────────────────────────────────────────────
+
+def get_upload_document_use_case(
+    document_repo=Depends(get_document_repo),
+):
     from application.knowledge_base.upload_document import UploadDocumentUseCase
     from infrastructure.knowledge_base.pdf_parser import PDFParser
     from infrastructure.knowledge_base.docx_parser import DOCXParser
     from infrastructure.knowledge_base.text_parser import TextParser
 
     return UploadDocumentUseCase(
-        document_repo=get_document_repo(),
+        document_repo=document_repo,
         parsers=[PDFParser(), DOCXParser(), TextParser()],
         embedder=get_embedder(),
         vector_store=get_vector_store(),
@@ -92,19 +141,6 @@ def get_search_chunks_use_case():
         embedder=get_embedder(),
         vector_store=get_vector_store(),
     )
-
-
-# ── Database session ──────────────────────────────────────────────────────────
-
-async def get_session() -> AsyncSession:
-    from infrastructure.database.session import AsyncSessionLocal
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
