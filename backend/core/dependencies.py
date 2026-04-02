@@ -64,6 +64,19 @@ def get_embedder() -> EmbeddingPort:
     )
 
 
+# ── File storage (MinIO) ─────────────────────────────────────────────────────
+
+@lru_cache
+def get_storage():
+    from infrastructure.storage.minio_adapter import MinioAdapter
+    return MinioAdapter(
+        endpoint=settings.MINIO_ENDPOINT,
+        access_key=settings.MINIO_ACCESS_KEY,
+        secret_key=settings.MINIO_SECRET_KEY,
+        secure=settings.MINIO_SECURE,
+    )
+
+
 # ── Vector store ──────────────────────────────────────────────────────────────
 
 @lru_cache
@@ -132,6 +145,8 @@ def get_upload_document_use_case(
         parsers=[PDFParser(), DOCXParser(), TextParser()],
         embedder=get_embedder(),
         vector_store=get_vector_store(),
+        storage=get_storage(),
+        storage_bucket=settings.MINIO_BUCKET_DOCS,
     )
 
 

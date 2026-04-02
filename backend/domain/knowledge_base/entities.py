@@ -28,6 +28,7 @@ class KnowledgeDocument:
     status: DocumentStatus = DocumentStatus.PENDING
     chunk_count: int = 0
     error: Optional[str] = None
+    file_path: str = ""  # object key в MinIO (пусто до загрузки)
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
