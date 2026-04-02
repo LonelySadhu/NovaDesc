@@ -4,6 +4,7 @@ from uuid import UUID
 from domain.knowledge_base.entities import DocumentChunk, DocumentType, KnowledgeDocument
 from domain.knowledge_base.ports import DocumentParserPort, EmbeddingPort, VectorStorePort
 from domain.knowledge_base.repositories import DocumentRepository
+from domain.storage.ports import StoragePort
 from .chunker import split_text
 
 _EXT_TO_TYPE: dict[str, DocumentType] = {
@@ -31,11 +32,15 @@ class UploadDocumentUseCase:
         parsers: list[DocumentParserPort],
         embedder: EmbeddingPort,
         vector_store: VectorStorePort,
+        storage: Optional[StoragePort] = None,
+        storage_bucket: str = "novadesc-docs",
     ):
         self._repo = document_repo
         self._parsers = parsers
         self._embedder = embedder
         self._vector_store = vector_store
+        self._storage = storage
+        self._storage_bucket = storage_bucket
 
     def _find_parser(self, filename: str) -> Optional[DocumentParserPort]:
         return next((p for p in self._parsers if p.supports(filename)), None)
@@ -56,6 +61,14 @@ class UploadDocumentUseCase:
 
         try:
             doc.mark_processing()
+
+            if self._storage is not None:
+                import mimetypes
+                content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+                key = f"knowledge-base/{doc.id}_{filename}"
+                await self._storage.upload(self._storage_bucket, key, file_bytes, content_type)
+                doc.file_path = key
+
             await self._repo.save(doc)
 
             parser = self._find_parser(filename)
