@@ -10,13 +10,7 @@ from infrastructure.database.models.knowledge_base import KnowledgeDocumentModel
 
 
 class SqlDocumentRepository(DocumentRepository):
-    """
-    SQL-реализация DocumentRepository.
-
-    Примечание: KnowledgeDocumentModel требует file_path (путь в MinIO), но
-    доменная сущность KnowledgeDocument этого поля не имеет — MinIO-интеграция
-    добавляется отдельно. До её реализации file_path хранится как пустая строка.
-    """
+    """SQL-реализация DocumentRepository."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -32,7 +26,7 @@ class SqlDocumentRepository(DocumentRepository):
                 equipment_id=document.equipment_id,
                 status=document.status.value,
                 chunk_count=document.chunk_count,
-                file_path="",
+                file_path=document.file_path,
                 created_at=document.created_at,
             )
             self._session.add(row)
@@ -43,6 +37,7 @@ class SqlDocumentRepository(DocumentRepository):
             row.equipment_id = document.equipment_id
             row.status = document.status.value
             row.chunk_count = document.chunk_count
+            row.file_path = document.file_path
         await self._session.flush()
         return document
 
@@ -81,5 +76,6 @@ class SqlDocumentRepository(DocumentRepository):
             equipment_id=row.equipment_id,
             status=DocumentStatus(row.status),
             chunk_count=row.chunk_count,
+            file_path=row.file_path,
             created_at=row.created_at,
         )
