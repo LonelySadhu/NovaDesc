@@ -6,7 +6,8 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from core.dependencies import get_current_user, get_work_order_repo
+from core.dependencies import get_current_user, get_storage, get_work_order_repo
+from domain.storage.ports import StoragePort
 from domain.users.entities import User
 from domain.users.value_objects import UserRole
 from domain.work_orders.entities import WorkOrder, WorkOrderLog, WorkOrderPhoto
@@ -14,6 +15,23 @@ from domain.work_orders.repositories import WorkOrderRepository
 from domain.work_orders.value_objects import WorkOrderPriority, WorkOrderStatus
 from infrastructure.auth.password import hash_password
 from main import app
+
+
+# ── Fake storage ──────────────────────────────────────────────────────────────
+
+class FakeStoragePort(StoragePort):
+    def __init__(self):
+        self.uploads: dict[tuple, bytes] = {}
+
+    async def upload(self, bucket, key, data, content_type="application/octet-stream"):
+        self.uploads[(bucket, key)] = data
+        return key
+
+    async def delete(self, bucket, key):
+        self.uploads.pop((bucket, key), None)
+
+    def presigned_url(self, bucket, key, expires_seconds=3600):
+        return f"http://fake-minio/{bucket}/{key}"
 
 
 # ── In-memory WorkOrder repository ───────────────────────────────────────────
@@ -76,6 +94,11 @@ def wo_repo():
 
 
 @pytest.fixture
+def fake_storage():
+    return FakeStoragePort()
+
+
+@pytest.fixture
 def dispatcher():
     return _make_user(UserRole.DISPATCHER)
 
@@ -86,17 +109,19 @@ def engineer():
 
 
 @pytest.fixture
-def client_dispatcher(wo_repo, dispatcher):
+def client_dispatcher(wo_repo, dispatcher, fake_storage):
     app.dependency_overrides[get_work_order_repo] = lambda: wo_repo
     app.dependency_overrides[get_current_user] = lambda: dispatcher
+    app.dependency_overrides[get_storage] = lambda: fake_storage
     yield AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def client_engineer(wo_repo, engineer):
+def client_engineer(wo_repo, engineer, fake_storage):
     app.dependency_overrides[get_work_order_repo] = lambda: wo_repo
     app.dependency_overrides[get_current_user] = lambda: engineer
+    app.dependency_overrides[get_storage] = lambda: fake_storage
     yield AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
     app.dependency_overrides.clear()
 
@@ -203,11 +228,12 @@ async def test_complete_with_photo(client_engineer, wo_repo, engineer):
     )
     order.assign(uuid4())
     await wo_repo.save(order)
-    # add photo
-    await client_engineer.post(
+    # загружаем фото через multipart
+    resp = await client_engineer.post(
         f"/api/v1/work-orders/{order.id}/photos",
-        json={"file_path": "p.jpg", "original_filename": "p.jpg", "file_size": 100},
+        files={"file": ("photo.jpg", b"\xff\xd8\xff" + b"x" * 100, "image/jpeg")},
     )
+    assert resp.status_code == 201
     # reload order from repo so photos list is populated
     saved = wo_repo._orders[order.id]
     saved.photos = [p for p in wo_repo._photos if p.work_order_id == order.id]
@@ -253,3 +279,92 @@ async def test_add_log(client_engineer, wo_repo):
     )
     assert resp.status_code == 201
     assert resp.json()["hours_spent"] == 1.5
+
+
+# ── Photos ────────────────────────────────────────────────────────────────────
+
+_FAKE_JPEG = b"\xff\xd8\xff" + b"x" * 200  # minimal fake JPEG bytes
+
+
+def _make_order_in_repo(wo_repo, order_type_str="corrective"):
+    from domain.work_orders.entities import WorkOrder
+    from domain.work_orders.value_objects import WorkOrderType
+    type_map = {
+        "corrective": WorkOrderType.CORRECTIVE,
+        "preventive": WorkOrderType.PREVENTIVE,
+    }
+    return WorkOrder(
+        title="T", description="D", equipment_id=uuid4(),
+        created_by=uuid4(), order_type=type_map[order_type_str],
+    )
+
+
+async def test_upload_photo_returns_201_and_presigned_url(client_engineer, wo_repo, fake_storage):
+    order = _make_order_in_repo(wo_repo)
+    await wo_repo.save(order)
+
+    resp = await client_engineer.post(
+        f"/api/v1/work-orders/{order.id}/photos",
+        files={"file": ("shot.jpg", _FAKE_JPEG, "image/jpeg")},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["original_filename"] == "shot.jpg"
+    assert body["file_size"] == len(_FAKE_JPEG)
+    assert body["url"] is not None
+    assert "fake-minio" in body["url"]
+
+
+async def test_upload_photo_stores_file_in_storage(client_engineer, wo_repo, fake_storage):
+    order = _make_order_in_repo(wo_repo)
+    await wo_repo.save(order)
+
+    await client_engineer.post(
+        f"/api/v1/work-orders/{order.id}/photos",
+        files={"file": ("img.png", _FAKE_JPEG, "image/png")},
+    )
+    # FakeStorage должен содержать ровно один объект в нужном bucket
+    keys = [k for (b, k) in fake_storage.uploads if b == "novadesc-media"]
+    assert len(keys) == 1
+    assert str(order.id) in keys[0]
+
+
+async def test_upload_photo_rejects_non_image(client_engineer, wo_repo):
+    order = _make_order_in_repo(wo_repo)
+    await wo_repo.save(order)
+
+    resp = await client_engineer.post(
+        f"/api/v1/work-orders/{order.id}/photos",
+        files={"file": ("doc.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert resp.status_code == 415
+
+
+async def test_upload_photo_with_caption(client_engineer, wo_repo):
+    order = _make_order_in_repo(wo_repo)
+    await wo_repo.save(order)
+
+    resp = await client_engineer.post(
+        f"/api/v1/work-orders/{order.id}/photos",
+        files={"file": ("shot.jpg", _FAKE_JPEG, "image/jpeg")},
+        data={"caption": "Before repair"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["caption"] == "Before repair"
+
+
+async def test_list_photos_returns_presigned_urls(client_engineer, wo_repo, fake_storage):
+    order = _make_order_in_repo(wo_repo)
+    await wo_repo.save(order)
+    # загружаем два фото
+    for i in range(2):
+        await client_engineer.post(
+            f"/api/v1/work-orders/{order.id}/photos",
+            files={"file": (f"photo{i}.jpg", _FAKE_JPEG, "image/jpeg")},
+        )
+
+    resp = await client_engineer.get(f"/api/v1/work-orders/{order.id}/photos")
+    assert resp.status_code == 200
+    photos = resp.json()
+    assert len(photos) == 2
+    assert all(p["url"] is not None for p in photos)
