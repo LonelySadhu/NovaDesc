@@ -61,6 +61,7 @@ class WorkOrderPhotoResponse(BaseModel):
     file_size: int
     caption: Optional[str]
     uploaded_at: datetime
+    url: Optional[str] = None  # presigned MinIO URL
 
     model_config = {"from_attributes": True}
 
