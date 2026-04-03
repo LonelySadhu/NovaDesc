@@ -130,6 +130,11 @@ def get_maintenance_schedule_repo(session: AsyncSession = Depends(get_session)):
     return SqlMaintenanceScheduleRepository(session)
 
 
+def get_user_repo(session: AsyncSession = Depends(get_session)):
+    from infrastructure.users.repository import SqlUserRepository
+    return SqlUserRepository(session)
+
+
 # ── Knowledge base use cases ──────────────────────────────────────────────────
 
 def get_upload_document_use_case(
