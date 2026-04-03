@@ -1,7 +1,7 @@
 import { cn } from '@shared/lib/cn'
 import { PriorityBadge, StatusBadge } from '@shared/ui/Badge'
 import type { WorkOrder } from '@entities/work-order/model/types'
-import type { WorkOrderStatus, WorkOrderPriority, WorkOrderType } from '@shared/types'
+import type { WorkOrderType } from '@shared/types'
 
 interface Props {
   orders: WorkOrder[]

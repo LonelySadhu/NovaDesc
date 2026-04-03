@@ -1,5 +1,4 @@
 import type { WorkOrder } from '@entities/work-order/model/types'
-import type { Equipment } from '@entities/equipment/model/types'
 
 export const mockWorkOrders: WorkOrder[] = [
   {
@@ -13,6 +12,7 @@ export const mockWorkOrders: WorkOrder[] = [
     priority: 'critical',
     status: 'in_progress',
     logs: [],
+    photos: [],
     total_hours: 2.5,
     created_at: '2026-03-25T08:00:00Z',
     updated_at: '2026-03-26T09:00:00Z',
@@ -28,6 +28,7 @@ export const mockWorkOrders: WorkOrder[] = [
     priority: 'high',
     status: 'in_progress',
     logs: [],
+    photos: [],
     total_hours: 1.0,
     created_at: '2026-03-25T10:00:00Z',
     updated_at: '2026-03-26T10:00:00Z',
@@ -43,6 +44,7 @@ export const mockWorkOrders: WorkOrder[] = [
     priority: 'medium',
     status: 'open',
     logs: [],
+    photos: [],
     total_hours: 0,
     created_at: '2026-03-24T14:00:00Z',
     updated_at: '2026-03-24T14:00:00Z',
@@ -58,6 +60,7 @@ export const mockWorkOrders: WorkOrder[] = [
     priority: 'high',
     status: 'in_progress',
     logs: [],
+    photos: [],
     total_hours: 3.0,
     created_at: '2026-03-23T09:00:00Z',
     updated_at: '2026-03-26T08:00:00Z',
@@ -73,6 +76,7 @@ export const mockWorkOrders: WorkOrder[] = [
     priority: 'medium',
     status: 'open',
     logs: [],
+    photos: [],
     total_hours: 0,
     created_at: '2026-03-26T07:00:00Z',
     updated_at: '2026-03-26T07:00:00Z',
