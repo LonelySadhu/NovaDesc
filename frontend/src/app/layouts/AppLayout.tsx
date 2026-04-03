@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { cn } from '@shared/lib/cn'
+import { useAuthStore } from '@shared/store/auth.store'
 
 const navItems = [
   { to: '/',            label: 'Dashboard',           icon: <IconGrid /> },
@@ -12,7 +13,13 @@ const navItems = [
   { to: '/settings',    label: 'Settings',             icon: <IconSettings /> },
 ]
 
-export const AppLayout = ({ children }: { children: ReactNode }) => (
+export const AppLayout = ({ children }: { children: ReactNode }) => {
+  const { user, logout } = useAuthStore()
+  const initials = user
+    ? user.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+    : '?'
+
+  return (
   <div className="flex h-screen bg-bg-base text-text-primary font-sans overflow-hidden">
     {/* Sidebar */}
     <aside className="w-60 flex-shrink-0 bg-bg-sidebar border-r border-border-subtle flex flex-col">
@@ -52,13 +59,13 @@ export const AppLayout = ({ children }: { children: ReactNode }) => (
       {/* User */}
       <div className="px-4 py-4 border-t border-border-subtle flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
-          JD
+          {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-text-primary truncate">John Doe</div>
-          <div className="text-[11px] text-text-secondary truncate">Technician</div>
+          <div className="text-sm font-medium text-text-primary truncate">{user?.full_name ?? '…'}</div>
+          <div className="text-[11px] text-text-secondary truncate capitalize">{user?.role ?? ''}</div>
         </div>
-        <button className="text-text-muted hover:text-text-secondary transition-colors" title="Logout">
+        <button onClick={logout} className="text-text-muted hover:text-text-secondary transition-colors" title="Logout">
           <IconLogout />
         </button>
       </div>
@@ -87,7 +94,8 @@ export const AppLayout = ({ children }: { children: ReactNode }) => (
       </div>
     </main>
   </div>
-)
+  )
+}
 
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
 
