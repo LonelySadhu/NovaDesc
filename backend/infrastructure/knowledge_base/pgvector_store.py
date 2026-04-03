@@ -8,27 +8,24 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from domain.knowledge_base.entities import DocumentChunk
 from domain.knowledge_base.ports import VectorStorePort
 
-# DDL is run once on startup; Alembic migration is the source of truth in production.
-_CREATE_TABLE_SQL = """
-CREATE EXTENSION IF NOT EXISTS vector;
-
-CREATE TABLE IF NOT EXISTS document_chunks (
+# DDL is run once on startup; asyncpg requires separate execute() per statement.
+_DDL_STATEMENTS = [
+    "CREATE EXTENSION IF NOT EXISTS vector",
+    """CREATE TABLE IF NOT EXISTS document_chunks (
     id          UUID        PRIMARY KEY,
     document_id UUID        NOT NULL,
     chunk_index INT         NOT NULL,
     content     TEXT        NOT NULL,
     embedding   vector({dim}),
     metadata    JSONB       NOT NULL DEFAULT '{{}}'
-);
-
-CREATE INDEX IF NOT EXISTS document_chunks_doc_idx
-    ON document_chunks (document_id);
-
-CREATE INDEX IF NOT EXISTS document_chunks_ivfflat_idx
+)""",
+    """CREATE INDEX IF NOT EXISTS document_chunks_doc_idx
+    ON document_chunks (document_id)""",
+    """CREATE INDEX IF NOT EXISTS document_chunks_ivfflat_idx
     ON document_chunks
     USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
-"""
+    WITH (lists = 100)""",
+]
 
 _UPSERT_SQL = """
 INSERT INTO document_chunks (id, document_id, chunk_index, content, embedding, metadata)
@@ -61,7 +58,8 @@ class PgVectorStore(VectorStorePort):
     async def init(self) -> None:
         """Create extension and table if they don't exist."""
         async with self._engine.begin() as conn:
-            await conn.execute(text(_CREATE_TABLE_SQL.format(dim=self._dim)))
+            for stmt in _DDL_STATEMENTS:
+                await conn.execute(text(stmt.format(dim=self._dim)))
 
     async def upsert_chunks(self, chunks: list[DocumentChunk]) -> None:
         async with self._engine.begin() as conn:
