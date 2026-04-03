@@ -1,5 +1,5 @@
 import { cn } from '@shared/lib/cn'
-import type { WorkOrderPriority, WorkOrderStatus } from '@shared/types'
+import type { EquipmentStatus, WorkOrderPriority, WorkOrderStatus } from '@shared/types'
 
 const priorityConfig: Record<WorkOrderPriority, { label: string; className: string }> = {
   critical: { label: 'CRITICAL', className: 'bg-danger/20 text-danger border-danger/30' },
@@ -35,5 +35,22 @@ export const PriorityBadge = ({ priority, className }: PriorityBadgeProps) => {
 
 export const StatusBadge = ({ status, className }: StatusBadgeProps) => {
   const config = statusConfig[status]
+  return <span className={cn(basePill, config.className, className)}>{config.label}</span>
+}
+
+const equipmentStatusConfig: Record<EquipmentStatus, { label: string; className: string }> = {
+  active:            { label: 'ACTIVE',            className: 'bg-success/20 text-success border-success/30' },
+  under_maintenance: { label: 'MAINTENANCE',        className: 'bg-primary/20 text-primary border-primary/30' },
+  fault:             { label: 'FAULT',              className: 'bg-danger/20 text-danger border-danger/30' },
+  decommissioned:    { label: 'DECOMMISSIONED',     className: 'bg-text-muted/20 text-text-muted border-text-muted/30' },
+}
+
+interface EquipmentStatusBadgeProps {
+  status: EquipmentStatus
+  className?: string
+}
+
+export const EquipmentStatusBadge = ({ status, className }: EquipmentStatusBadgeProps) => {
+  const config = equipmentStatusConfig[status]
   return <span className={cn(basePill, config.className, className)}>{config.label}</span>
 }
