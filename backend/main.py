@@ -10,6 +10,7 @@ from api.v1.spare_parts.router import router as spare_parts_router
 from api.v1.maintenance.router import router as maintenance_router
 from api.v1.ai.router import router as ai_router
 from api.v1.knowledge_base.router import router as knowledge_base_router
+from api.v1.users.router import router as users_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -42,6 +43,7 @@ app.include_router(spare_parts_router, prefix="/api/v1")
 app.include_router(maintenance_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
 app.include_router(knowledge_base_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
 
 
 @app.get("/api/health")

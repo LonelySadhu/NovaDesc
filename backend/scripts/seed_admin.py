@@ -34,7 +34,10 @@ async def seed() -> None:
         repo = SqlUserRepository(session)
         existing = await repo.get_by_username(ADMIN_USERNAME)
         if existing:
-            print(f"[seed] User '{ADMIN_USERNAME}' already exists — skipping.")
+            existing.hashed_password = hash_password(ADMIN_PASSWORD)
+            await repo.save(existing)
+            await session.commit()
+            print(f"[seed] User '{ADMIN_USERNAME}' already exists — password updated.")
             return
 
         admin = User(
